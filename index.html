@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mini Client MQTT - Parsing JSON</title>
+    <!-- Chargement officiel de la librairie MQTT.js via CDN -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 650px;
+        margin: 20px auto;
+        padding: 0 20px;
+        background-color: #f4f4f9;
+      }
+      .card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+      .status-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 15px;
+      }
+      .status-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: #d9534f;
+        display: inline-block;
+      }
+      .status-dot.connected {
+        background-color: #5cb85c;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        font-size: 14px;
+        color: #333;
+      }
+      .form-group input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+        font-family: monospace;
+      }
+      .form-group input:disabled {
+        background-color: #e9ecef;
+        color: #6c757d;
+      }
+      .grid-4 {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+      }
+      .header-console {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .header-console h3 {
+        margin: 0;
+      }
+      .row {
+        display: flex;
+        gap: 15px;
+      }
+      .col {
+        flex: 1;
+      }
+      button {
+        padding: 10px 15px;
+        font-size: 14px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .btn-connect {
+        background-color: #0275d8;
+        color: white;
+        width: 100%;
+      }
+      .btn-disconnect {
+        background-color: #d9534f;
+        color: white;
+        width: 100%;
+      }
+      .btn-pub {
+        background-color: #f0ad4e;
+        color: white;
+        width: 100%;
+      }
+      .btn-clear {
+        background-color: #6c757d;
+        color: white;
+        padding: 5px 10px;
+        font-size: 12px;
+      }
+      button:hover {
+        opacity: 0.9;
+      }
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      #console {
+        background-color: #222;
+        color: #00ff00;
+        padding: 15px;
+        border-radius: 4px;
+        height: 150px;
+        overflow-y: auto;
+        font-family: "Courier New", Courier, monospace;
+        font-size: 13px;
+      }
+      .log-entry {
+        margin-bottom: 5px;
+      }
+      .log-inbound {
+        color: #87cefa;
+      }
+      .log-error {
+        color: #ff6b6b;
+      }
+      .parsed-input {
+        background-color: #f8f9fa;
+        border: 1px solid #ced4da;
+        font-weight: bold;
+        color: #212529;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Mini Client MQTT</h2>
+
+    <!-- Configuration Connexion & Topic Subscribe -->
+    <div class="card">
+      <div class="status-container">
+        <span>Statut : <strong id="status-text">Déconnecté</strong></span>
+        <div id="status-dot" class="status-dot"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="input-sub">Topic de réception (Subscribe)</label>
+        <input type="text" id="input-sub" value="mon/application/input" />
+      </div>
+
+      <button id="btn-toggle-connect" class="btn-connect">Se connecter</button>
+    </div>
+
+    <!-- Affichage des paramètres JSON reçus -->
+    <div class="card">
+      <h3>Données reçues (Parsed JSON)</h3>
+      <div class="grid-4">
+        <div class="form-group">
+          <label for="param-device">Appareil (device)</label>
+          <input
+            type="text"
+            id="param-device"
+            class="parsed-input"
+            readonly
+            placeholder="-"
+          />
+        </div>
+        <div class="form-group">
+          <label for="param-status">Statut (status)</label>
+          <input
+            type="text"
+            id="param-status"
+            class="parsed-input"
+            readonly
+            placeholder="-"
+          />
+        </div>
+        <div class="form-group">
+          <label for="param-temp">Température (temperature)</label>
+          <input
+            type="text"
+            id="param-temp"
+            class="parsed-input"
+            readonly
+            placeholder="-"
+          />
+        </div>
+        <div class="form-group">
+          <label for="param-hum">Humidité (humidity)</label>
+          <input
+            type="text"
+            id="param-hum"
+            class="parsed-input"
+            readonly
+            placeholder="-"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Configuration de l'envoi (Publish) -->
+    <div class="card">
+      <h3>Actions (Publish)</h3>
+
+      <div class="row">
+        <div class="col">
+          <div class="form-group">
+            <label for="input-pub1">Topic Msg 1</label>
+            <input
+              type="text"
+              id="input-pub1"
+              value="mon/application/output1"
+            />
+          </div>
+          <button id="btn-pub1" class="btn-pub" disabled>Envoyer Msg 1</button>
+        </div>
+
+        <div class="col">
+          <div class="form-group">
+            <label for="input-pub2">Topic Msg 2</label>
+            <input
+              type="text"
+              id="input-pub2"
+              value="mon/application/output2"
+            />
+          </div>
+          <button id="btn-pub2" class="btn-pub" disabled>Envoyer Msg 2</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Console de Réception -->
+    <div class="card">
+      <div class="header-console">
+        <h3>Console de réception</h3>
+        <button id="btn-clear-console" class="btn-clear">Effacer</button>
+      </div>
+      <div id="console"></div>
+    </div>
+
+    <script>
+      const BROKER_URL = "wss://broker.emqx.io:8084/mqtt";
+
+      // const MSG_PUB_1 = JSON.stringify({
+      //   action: "allumer",
+      //   timestamp: Date.now(),
+      // });
+
+      const MSG_PUB_1 = JSON.stringify({
+        temperature: 25,
+        humidity: 15,
+        status: "on",
+        device: "chambre",
+      });
+
+      const MSG_PUB_2 = JSON.stringify({
+        action: "éteindre",
+        timestamp: Date.now(),
+      });
+
+      // ÉLÉMENTS DU DOM
+      const btnToggleConnect = document.getElementById("btn-toggle-connect");
+      const btnPub1 = document.getElementById("btn-pub1");
+      const btnPub2 = document.getElementById("btn-pub2");
+      const btnClearConsole = document.getElementById("btn-clear-console");
+      const statusText = document.getElementById("status-text");
+      const statusDot = document.getElementById("status-dot");
+      const consoleDiv = document.getElementById("console");
+
+      const inputSub = document.getElementById("input-sub");
+      const inputPub1 = document.getElementById("input-pub1");
+      const inputPub2 = document.getElementById("input-pub2");
+
+      // NOUVEAUX ÉLÉMENTS POUR L'AFFICHAGE DES PARAMÈTRES
+      const paramDevice = document.getElementById("param-device");
+      const paramStatus = document.getElementById("param-status");
+      const paramTemp = document.getElementById("param-temp");
+      const paramHum = document.getElementById("param-hum");
+
+      let client = null;
+
+      // FONCTION DE LOG POUR LA CONSOLE
+      function logToConsole(message, type = "info") {
+        const entry = document.createElement("div");
+        entry.classList.add("log-entry");
+        if (type === "inbound") entry.classList.add("log-inbound");
+        if (type === "error") entry.classList.add("log-error");
+
+        const time = new Date().toLocaleTimeString();
+        entry.textContent = `[${time}] ${message}`;
+
+        consoleDiv.appendChild(entry);
+        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+      }
+
+      // ACTION DU BOUTON EFFACER
+      btnClearConsole.addEventListener("click", () => {
+        consoleDiv.innerHTML = "";
+      });
+
+      // GESTION DE LA CONNEXION / DÉCONNEXION
+      btnToggleConnect.addEventListener("click", () => {
+        if (!client || !client.connected) {
+          logToConsole("Tentative de connexion au broker...");
+          client = mqtt.connect(BROKER_URL);
+
+          client.on("connect", () => {
+            logToConsole("Connecté avec succès !");
+            updateUI(true);
+
+            const topicToSubscribe = inputSub.value.trim() || "default/topic";
+            client.subscribe(topicToSubscribe, (err) => {
+              if (!err) {
+                logToConsole(`Souscrit au topic : ${topicToSubscribe}`);
+              } else {
+                logToConsole(
+                  `Erreur de souscription : ${err.message}`,
+                  "error",
+                );
+              }
+            });
+          });
+
+          client.on("message", (topic, message) => {
+            const payloadStr = message.toString();
+            logToConsole(`Reçu sur [${topic}] : ${payloadStr}`, "inbound");
+
+            // PARSING DU MESSAGE JSON
+            try {
+              const data = JSON.parse(payloadStr);
+
+              // Assignation des valeurs aux champs (ou chaîne vide si absent)
+              paramDevice.value =
+                data.device !== undefined ? data.device : "Non spécifié";
+
+              paramStatus.value =
+                data.status !== undefined ? data.status : "Non spécifié";
+              paramTemp.value =
+                data.temperature !== undefined
+                  ? `${data.temperature} °C`
+                  : "Non spécifié";
+              paramHum.value =
+                data.humidity !== undefined
+                  ? `${data.humidity} % `
+                  : "Non spécifié";
+            } catch (e) {
+              logToConsole(
+                "Échec du parsing JSON : Le message reçu n'est pas un JSON valide.",
+                "error",
+              );
+            }
+          });
+          client.on("error", (err) => {
+            logToConsole("Erreur client : ${err.message}", "error");
+            disconnectClient();
+          });
+          client.on("close", () => {
+            logToConsole("Connexion fermée.");
+            updateUI(false);
+          });
+        } else {
+          disconnectClient();
+        }
+      });
+      function disconnectClient() {
+        if (client) {
+          logToConsole("Déconnexion demandée...");
+          client.end();
+        }
+      }
+      // GESTION DES BOUTONS PUBLISH
+      btnPub1.addEventListener("click", () => {
+        if (client && client.connected) {
+          const topic = inputPub1.value.trim() || "default/output1";
+          client.publish(topic, MSG_PUB_1);
+          logToConsole("Publié sur [${topic}] : ${MSG_PUB_1}");
+        }
+      });
+      btnPub2.addEventListener("click", () => {
+        if (client && client.connected) {
+          const topic = inputPub2.value.trim() || "default/output2";
+          client.publish(topic, MSG_PUB_2);
+          logToConsole("Publié sur [${topic}] : ${MSG_PUB_2}");
+        }
+      });
+      // MISE À JOUR DE L'INTERFACE GRAPHIQUE
+      function updateUI(isConnected) {
+        if (isConnected) {
+          statusText.textContent = "Connecté";
+          statusDot.classList.add("connected");
+          btnToggleConnect.textContent = "Se déconnecter";
+          btnToggleConnect.className = "btn-disconnect";
+          btnPub1.disabled = false;
+          btnPub2.disabled = false;
+          inputSub.disabled = true;
+          inputPub1.disabled = true;
+          inputPub2.disabled = true;
+        } else {
+          statusText.textContent = "Déconnecté";
+          statusDot.classList.remove("connected");
+          btnToggleConnect.textContent = "Se connecter";
+          btnToggleConnect.className = "btn-connect";
+          btnPub1.disabled = true;
+          btnPub2.disabled = true;
+          inputSub.disabled = false;
+          inputPub1.disabled = false;
+          inputPub2.disabled = false;
+          // Réinitialisation des champs JSON lors de la déconnexion
+          paramDevice.value = "";
+          paramStatus.value = "";
+          paramTemp.value = "";
+          paramHum.value = "";
+        }
+      }
+    </script>
+  </body>
+</html>
