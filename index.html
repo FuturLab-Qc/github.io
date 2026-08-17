@@ -2,137 +2,321 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mini Client MQTT Simplifié</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Mini Client MQTT Pro - Multi-Unités</title>
 
-    <!-- Chargement officiel de la librairie MQTT.js via CDN (Votre version d'origine) -->
+    <!-- Chargement officiel de la librairie MQTT.js via CDN -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
     <style>
+      :root {
+        --bg-color: #0f172a; /* Fond de page bleu nuit très sombre */
+        --card-bg: #1e293b; /* Fond des cartes gris/bleu foncé */
+        --text-main: #f8fafc; /* Texte principal blanc cassé */
+        --text-muted: #94a3b8; /* Texte secondaire gris clair */
+        --primary: #38bdf8; /* Bleu ciel néon */
+        --primary-hover: #0ea5e9;
+        --success: #22c55e; /* Vert émeraude */
+        --danger: #ef4444; /* Rouge vif */
+        --neutral: #475569; /* Gris ardoise */
+        --neutral-hover: #334155;
+        --radius: 12px;
+      }
+
       body {
-        font-family: Arial, sans-serif;
-        max-width: 500px;
-        margin: 40px auto;
-        padding: 0 20px;
-        background-color: #f4f4f9;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        max-width: 480px;
+        margin: 0 auto;
+        padding: 20px 15px;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        -webkit-tap-highlight-color: transparent;
       }
+
+      h2 {
+        text-align: center;
+        margin-top: 10px;
+        margin-bottom: 25px;
+        font-weight: 700;
+        color: var(--text-main);
+        font-size: 24px;
+        letter-spacing: -0.5px;
+      }
+
       .card {
-        background: white;
+        background: var(--card-bg);
         padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border-radius: var(--radius);
+        box-shadow:
+          0 4px 6px -1px rgba(0, 0, 0, 0.2),
+          0 2px 4px -1px rgba(0, 0, 0, 0.1);
         margin-bottom: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
       }
+
       .status-container {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
+        font-size: 16px;
+        font-weight: 500;
       }
+
+      #status-text {
+        color: var(--text-main);
+      }
+
+      .status-badge {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #0f172a;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
       .status-dot {
-        width: 12px;
-        height: 12px;
+        width: 10px;
+        height: 10px;
         border-radius: 50%;
-        background-color: #d9534f;
-        display: inline-block;
+        background-color: var(--danger);
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3);
+        transition: all 0.3s ease;
       }
+
       .status-dot.connected {
-        background-color: #5cb85c;
+        background-color: var(--success);
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
       }
+
+      /* Grille pour les 5 boutons de sélection d'unités */
+      .unit-container {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 6px;
+        margin-top: 15px;
+      }
+
+      /* Petits boutons d'unité */
+      .btn-unit {
+        padding: 10px 4px;
+        font-size: 11px;
+        font-weight: 600;
+        background-color: var(--neutral);
+        color: white;
+        border-radius: 8px;
+        white-space: nowrap;
+      }
+      .btn-unit:hover {
+        background-color: var(--neutral-hover);
+      }
+
+      /* État actif bleu pour l'unité sélectionnée */
+      .btn-unit.active {
+        background-color: var(--primary) !important;
+        color: #0f172a !important;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+      }
+
+      /* Zone de rétroaction d'état réel */
+      .state-feedback {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #0f172a;
+        padding: 18px;
+        border-radius: var(--radius);
+        margin-bottom: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        text-align: center;
+      }
+
+      .state-title {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+      }
+
+      .state-value {
+        font-size: 24px;
+        font-weight: 800;
+        color: #64748b;
+        transition: all 0.3s ease;
+      }
+
       .row {
         display: flex;
         gap: 15px;
       }
+
       .col {
         flex: 1;
       }
+
       button {
-        padding: 12px 15px;
-        font-size: 15px;
-        font-weight: bold;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px 20px;
+        font-size: 16px;
+        font-weight: 600;
         border: none;
-        border-radius: 4px;
+        border-radius: var(--radius);
         cursor: pointer;
-        transition: background 0.2s;
+        transition: all 0.2s ease;
+        width: 100%;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
+
+      button:active {
+        transform: scale(0.98);
+      }
+
       .btn-connect {
-        background-color: #0275d8;
-        color: white;
-        width: 100%;
+        background-color: var(--primary);
+        color: #0f172a;
       }
+      .btn-connect:hover {
+        background-color: var(--primary-hover);
+      }
+
       .btn-disconnect {
-        background-color: #6c757d;
+        background-color: var(--neutral);
         color: white;
-        width: 100%;
       }
+      .btn-disconnect:hover {
+        background-color: var(--neutral-hover);
+      }
+
       .btn-ouvrir {
-        background-color: #5cb85c;
+        background-color: var(--success);
         color: white;
-        width: 100%;
+        height: 70px;
+        font-size: 18px;
       }
+
       .btn-fermer {
-        background-color: #d9534f;
+        background-color: var(--danger);
         color: white;
-        width: 100%;
+        height: 70px;
+        font-size: 18px;
       }
+
       .btn-clear {
-        background-color: #6c757d;
-        color: white;
-        padding: 5px 10px;
-        font-size: 12px;
+        background-color: #0f172a;
+        color: var(--text-muted);
+        padding: 6px 12px;
+        font-size: 13px;
+        font-weight: 500;
+        width: auto;
+        box-shadow: none;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
       }
-      button:hover {
-        opacity: 0.9;
-      }
+
       button:disabled {
-        background-color: #ccc;
+        background-color: #334155 !important;
+        color: #64748b !important;
         cursor: not-allowed;
-        opacity: 0.6;
+        box-shadow: none;
+        transform: none;
       }
+
       .header-console {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
       }
+
       .header-console h3 {
         margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-main);
       }
+
       #console {
-        background-color: #222;
-        color: #00ff00;
+        background-color: #090d16;
+        color: #4ade80;
         padding: 15px;
-        border-radius: 4px;
-        height: 180px;
+        border-radius: var(--radius);
+        height: 200px;
         overflow-y: auto;
-        font-family: "Courier New", Courier, monospace;
-        font-size: 13px;
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 12px;
+        line-height: 1.6;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.02);
       }
+
       .log-entry {
-        margin-bottom: 5px;
+        margin-bottom: 6px;
+        word-break: break-all;
       }
+
       .log-inbound {
-        color: #87cefa;
+        color: #38bdf8;
+        font-weight: 500;
       }
+
       .log-error {
-        color: #ff6b6b;
+        color: #f87171;
       }
     </style>
   </head>
   <body>
     <h2>Mini Client MQTT</h2>
 
-    <!-- Statut et Connexion -->
+    <!-- Statut, Connexion & Sélections d'Unités -->
     <div class="card">
       <div class="status-container">
         <span>Statut : <strong id="status-text">Déconnecté</strong></span>
-        <div id="status-dot" class="status-dot"></div>
+        <div class="status-badge">
+          <div id="status-dot" class="status-dot"></div>
+        </div>
       </div>
       <button id="btn-toggle-connect" class="btn-connect">Se connecter</button>
+
+      <!-- Zone des 5 petits boutons d'unités (ID simplifiés et nettoyés) -->
+      <div class="unit-container">
+        <button id="unit1" class="btn-unit active" onclick="selectUnit(1)">
+          Unité 1
+        </button>
+        <button id="unit2" class="btn-unit" onclick="selectUnit(2)">
+          Unité 2
+        </button>
+        <button id="unit3" class="btn-unit" onclick="selectUnit(3)">
+          Unité 3
+        </button>
+        <button id="unit4" class="btn-unit" onclick="selectUnit(4)">
+          Unité 4
+        </button>
+        <button id="unit5" class="btn-unit" onclick="selectUnit(5)">
+          Unité 5
+        </button>
+      </div>
     </div>
 
-    <!-- Commandes Fixes (Publish) -->
+    <!-- Commandes Fixes (Publish) & Affichage de l'état réel -->
     <div class="card">
+      <div class="state-feedback">
+        <div id="state-title" class="state-title">État actuel de l'unité 1</div>
+        <div id="device-state" class="state-value">État inconnu</div>
+      </div>
+
       <div class="row">
         <div class="col">
           <button id="btn-ouvrir" class="btn-ouvrir" disabled>Ouvrir</button>
@@ -153,12 +337,15 @@
     </div>
 
     <script>
-      // CONFIGURATIONS FIXES (Identiques à votre environnement de test)
+      // CONFIGURATIONS DE BASE
       const BROKER_URL = "wss://broker.emqx.io:8084/mqtt";
-      const TOPIC_SUBSCRIBE = "iks/state";
-      const TOPIC_PUBLISH = "iks/led";
       const MSG_OUVRIR = "ON";
       const MSG_FERMER = "OFF";
+
+      // Gestion de l'unité active par défaut
+      let activeUnit = 1;
+      let currentSubscribeTopic = `iks/state${activeUnit}`;
+      let currentPublishTopic = `iks/led${activeUnit}`;
 
       // ÉLÉMENTS DU DOM
       const btnToggleConnect = document.getElementById("btn-toggle-connect");
@@ -168,44 +355,46 @@
       const statusText = document.getElementById("status-text");
       const statusDot = document.getElementById("status-dot");
       const consoleDiv = document.getElementById("console");
+      const deviceState = document.getElementById("device-state");
+      const stateTitle = document.getElementById("state-title");
 
       let client = null;
 
-      // FONCTION D'AFFICHAGE DANS LA CONSOLE
-      function logToConsole(message, type = "info") {
-        const entry = document.createElement("div");
-        entry.classList.add("log-entry");
-        if (type === "inbound") entry.classList.add("log-inbound");
-        if (type === "error") entry.classList.add("log-error");
+      // FONCTION DE SÉLECTION D'UNITÉ (CORRIGÉE)
+      function selectUnit(unitNumber) {
+        if (activeUnit === unitNumber) return; // Déjà sélectionné
 
-        const time = new Date().toLocaleTimeString();
-        entry.textContent = `[${time}] ${message}`;
-
-        consoleDiv.appendChild(entry);
-        consoleDiv.scrollTop = consoleDiv.scrollHeight;
-      }
-
-      // EFFACER LA CONSOLE
-      btnClearConsole.addEventListener("click", () => {
-        consoleDiv.innerHTML = "";
-      });
-
-      // GESTION DE LA CONNEXION / DÉCONNEXION
-      btnToggleConnect.addEventListener("click", () => {
-        if (!client || !client.connected) {
-          logToConsole("Tentative de connexion au broker...");
-
-          // Appel direct à la méthode connect (sans vérification bloquante)
-          client = mqtt.connect(BROKER_URL);
-
-          client.on("connect", () => {
-            logToConsole("Connecté au broker avec succès !");
-            updateUI(true);
-
-            // Souscription au topic fixe textuel
-            client.subscribe(TOPIC_SUBSCRIBE, (err) => {
+        const oldSubscribeTopic = currentSubscribeTopic;
+        // Mettre à jour les variables d'unités
+        activeUnit = unitNumber;
+        currentSubscribeTopic = `iks/state${activeUnit}`;
+        currentPublishTopic = `iks/led${activeUnit}`;
+        // Mettre à jour graphiquement l'état des boutons (Correction de la boucle)
+        for (let i = 1; i <= 5; i++) {
+          const btn = document.getElementById(`unit${i}`);
+          if (btn) {
+            if (i === unitNumber) {
+              btn.classList.add("active");
+            } else {
+              btn.classList.remove("active");
+            }
+          }
+        }
+        // Mettre à jour les textes d'affichages
+        stateTitle.textContent = `État actuel de l'unité ${activeUnit}`;
+        resetStateTextColors();
+        logToConsole(
+          `Basculement sur l'Unité ${activeUnit} (Topic Publish: ${currentPublishTopic})`,
+        );
+        // Basculement d'abonnement MQTT dynamique si déjà connecté
+        if (client && client.connected) {
+          client.unsubscribe(oldSubscribeTopic, () => {
+            logToConsole(`Désabonné de : ${oldSubscribeTopic}`);
+            client.subscribe(currentSubscribeTopic, (err) => {
               if (!err) {
-                logToConsole(`Souscrit au topic : ${TOPIC_SUBSCRIBE}`);
+                logToConsole(
+                  `Souscrit au nouveau topic : ${currentSubscribeTopic}`,
+                );
               } else {
                 logToConsole(
                   `Erreur de souscription : ${err.message}`,
@@ -214,18 +403,82 @@
               }
             });
           });
-
-          // Réception en texte pur (Pas de parsing JSON)
-          client.on("message", (topic, message) => {
-            const payloadStr = message.toString();
-            logToConsole(`Reçu sur [${topic}] : ${payloadStr}`, "inbound");
+        }
+      }
+      // FONCTION D'AFFICHAGE DANS LA CONSOLE
+      function logToConsole(message, type = "info") {
+        const entry = document.createElement("div");
+        entry.classList.add("log-entry");
+        if (type === "inbound") entry.classList.add("log-inbound");
+        if (type === "error") entry.classList.add("log-error");
+        const time = new Date().toLocaleTimeString();
+        entry.textContent = `[${time}] ${message}`;
+        consoleDiv.appendChild(entry);
+        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+      }
+      // EFFACER LA CONSOLE
+      btnClearConsole.addEventListener("click", () => {
+        consoleDiv.innerHTML = "";
+      });
+      // GESTION DE LA CONNEXION / DÉCONNEXION
+      btnToggleConnect.addEventListener("click", () => {
+        if (!client || !client.connected) {
+          logToConsole("Tentative de connexion au broker...");
+          client = mqtt.connect(BROKER_URL);
+          client.on("connect", () => {
+            logToConsole("Connecté au broker avec succès !");
+            updateUI(true);
+            client.subscribe(currentSubscribeTopic, (err) => {
+              if (!err) {
+                logToConsole(`Souscrit au topic : ${currentSubscribeTopic}`);
+              } else {
+                logToConsole(
+                  `Erreur de souscription : ${err.message}`,
+                  "error",
+                );
+              }
+            });
           });
-
+          // Écoute des messages
+          client.on("message", (topic, message) => {
+            const payloadStr = message.toString().trim().toUpperCase();
+            logToConsole(`Reçu sur [${topic}] : ${payloadStr}`, "inbound");
+            // Filtrage strict : on ne traite le message que s'il cible l'unité courante
+            if (topic === currentSubscribeTopic) {
+              if (payloadStr.includes("OUVERT")) {
+                deviceState.textContent = "OUVERT";
+                deviceState.style.setProperty("color", "#4ade80", "important");
+                deviceState.style.setProperty(
+                  "text-shadow",
+                  "0 0 10px rgba(74, 222, 128, 0.5)",
+                  "important",
+                );
+              } else if (
+                payloadStr.includes("FERMÉ") ||
+                payloadStr.includes("FERME")
+              ) {
+                deviceState.textContent = "FERMÉ";
+                deviceState.style.setProperty("color", "#f87171", "important");
+                deviceState.style.setProperty(
+                  "text-shadow",
+                  "0 0 10px rgba(248, 113, 113, 0.5)",
+                  "important",
+                );
+              } else {
+                deviceState.textContent = payloadStr;
+                deviceState.style.setProperty("color", "#94a3b8", "important");
+                deviceState.style.setProperty(
+                  "text-shadow",
+                  "none",
+                  "important",
+                );
+              }
+            }
+          });
           client.on("error", (err) => {
             logToConsole(`Erreur client : ${err.message}`, "error");
             disconnectClient();
           });
-
           client.on("close", () => {
             logToConsole("Connexion fermée.");
             updateUI(false);
@@ -234,29 +487,30 @@
           disconnectClient();
         }
       });
-
       function disconnectClient() {
         if (client) {
           logToConsole("Déconnexion demandée...");
           client.end();
         }
       }
-
-      // ACTIONS DE PUBLICATION
+      function resetStateTextColors() {
+        deviceState.textContent = "État inconnu";
+        deviceState.style.setProperty("color", "#64748b", "important");
+        deviceState.style.setProperty("text-shadow", "none", "important");
+      }
+      // ACTIONS DE PUBLICATION SUR LE TOPIC DE L'UNITÉ ACTIVE
       btnOuvrir.addEventListener("click", () => {
         if (client && client.connected) {
-          client.publish(TOPIC_PUBLISH, MSG_OUVRIR);
-          logToConsole(`Publié sur [${TOPIC_PUBLISH}] : ${MSG_OUVRIR}`);
+          client.publish(currentPublishTopic, MSG_OUVRIR);
+          logToConsole(`Publié sur [${currentPublishTopic}] : ${MSG_OUVRIR}`);
         }
       });
-
       btnFermer.addEventListener("click", () => {
         if (client && client.connected) {
-          client.publish(TOPIC_PUBLISH, MSG_FERMER);
-          logToConsole(`Publié sur [${TOPIC_PUBLISH}] : ${MSG_FERMER}`);
+          client.publish(currentPublishTopic, MSG_FERMER);
+          logToConsole(`Publié sur [${currentPublishTopic}] : ${MSG_FERMER}`);
         }
       });
-
       // MISE À JOUR DE L'INTERFACE GRAPHIQUE
       function updateUI(isConnected) {
         if (isConnected) {
@@ -273,6 +527,7 @@
           btnToggleConnect.className = "btn-connect";
           btnOuvrir.disabled = true;
           btnFermer.disabled = true;
+          resetStateTextColors();
         }
       }
     </script>
